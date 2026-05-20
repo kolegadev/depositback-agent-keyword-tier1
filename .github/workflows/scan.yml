@@ -5,6 +5,10 @@ on:
     paths:
       - 'data/inbox/**'
       - 'manifest.json'
+
+permissions:
+  contents: write
+
 jobs:
   scan:
     runs-on: ubuntu-latest
