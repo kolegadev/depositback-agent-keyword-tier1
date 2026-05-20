@@ -1,7 +1,5 @@
 name: Scan Inbox
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
     paths:
@@ -18,8 +16,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python runtime/main.py
         env:
-          AGENT_NAME: depositback-agent-keyword-tier1
-          AGENT_ID: '19'
+          AGENT_NAME: ${{ github.event.repository.name }}
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
       - run: |
           git config user.name "github-actions[bot]"
