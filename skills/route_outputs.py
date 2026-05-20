@@ -1,6 +1,4 @@
-"""Route Outputs skill — pushes keyword artifacts to Content Production agent inboxes.
-Requires GITHUB_TOKEN environment variable.
-"""
+"""Route Outputs skill — pushes keyword artifacts to Content Production agent inboxes."""
 import os
 import json
 import base64
@@ -39,28 +37,33 @@ def _put_file(repo: str, path: str, content: str, message: str):
 
 
 def run(artifact_path: str, tier: int, agent_name: str):
-    """
-    Reads a keyword artifact and routes content briefs to appropriate agents.
-    """
     if not os.path.exists(artifact_path):
         return {"error": f"Artifact not found: {artifact_path}"}
 
     with open(artifact_path, "r") as f:
         artifact = json.load(f)
 
-    keywords = artifact.get("keywords", [])
-    if not keywords and "states" in artifact:
-        # Tier 3 flatten
-        keywords = []
-        for state_data in artifact["states"].values():
+    # The artifact is wrapped by runtime/main.py. The actual skill result is inside results[].result
+    keywords = []
+    raw_result = None
+    if "results" in artifact and artifact["results"]:
+        raw_result = artifact["results"][0].get("result", {})
+    else:
+        raw_result = artifact
+
+    # Flatten keywords from nested tier 3 structure or direct array
+    if "keywords" in raw_result:
+        keywords = raw_result["keywords"]
+    elif "states" in raw_result:
+        for state_data in raw_result["states"].values():
             keywords.extend(state_data.get("keywords", []))
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     routed = []
 
-    # Route to geo-content-generator (state-specific landing pages)
+    # Route to geo-content-generator (all tiers with state pages)
     if tier in (1, 3):
-        state_keywords = [k for k in keywords if k.get("target_page", "").startswith("/") or "state" in k.get("target_page", "")]
+        state_keywords = [k for k in keywords if k.get("target_page", "").startswith("/")]
         if state_keywords:
             brief = {
                 "request_id": f"brief-{ts}-geo",
@@ -74,7 +77,7 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["geo_content_generator"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "geo_content_generator", "path": path, "result": res})
 
-    # Route to landing-page-optimizer (homepage + transactional pages)
+    # Route to landing-page-optimizer (homepage + transactional)
     if tier == 1:
         transactional = [k for k in keywords if k.get("target_page") == "homepage" or "transactional" in k.get("intent", "")]
         if transactional:
@@ -90,7 +93,7 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["landing_page_optimizer"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "landing_page_optimizer", "path": path, "result": res})
 
-    # Route to social-content-creator (problem-aware → TikTok/Reel hooks)
+    # Route to social-content-creator (problem-aware)
     if tier == 2:
         problem_keywords = [k for k in keywords if "problem" in k.get("intent", "") or "blog" in k.get("content_strategy", "")]
         if problem_keywords:
@@ -106,7 +109,7 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["social_content_creator"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "social_content_creator", "path": path, "result": res})
 
-    # Route to email-copywriter (all tiers → email sequences)
+    # Route to email-copywriter (all tiers)
     all_keywords = keywords[:30]
     if all_keywords:
         brief = {
