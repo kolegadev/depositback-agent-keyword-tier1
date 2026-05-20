@@ -14,6 +14,11 @@ SKILL_REGISTRY = {
     "datamuse_expand": ("datamuse_expand", "run"),
     "keyword_discovery": ("keyword_discovery", "run"),
     "state_expander": ("state_expander", "run"),
+    "multi_source_suggest": ("multi_source_suggest", "run"),
+    "google_trends": ("google_trends", "run"),
+    "people_also_ask": ("people_also_ask", "run"),
+    "related_searches": ("related_searches", "run"),
+    "route_outputs": ("route_outputs", "run"),
 }
 
 
