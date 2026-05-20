@@ -1,0 +1,16 @@
+{
+  "request_id": "dispatch-6a0e3a03617733eeb5c5fb03",
+  "agent": "depositback-agent-keyword-tier1",
+  "agent_id": 26,
+  "workflow": {
+    "steps": [
+      {
+        "id": "discover_tier1",
+        "skill": "keyword_discovery",
+        "params": {}
+      }
+    ]
+  },
+  "mode": "keyword_tier1",
+  "human_review_required": false
+}
