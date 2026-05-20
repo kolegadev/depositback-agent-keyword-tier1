@@ -2,15 +2,12 @@
   "workflow_id": "depositback-agent-keyword-tier1-default",
   "version": "1.0.0",
   "agent": "depositback-agent-keyword-tier1",
-  "created": "2026-05-20T00:00:00Z",
-  "description": "Default health-check workflow for depositback-agent-keyword-tier1",
+  "description": "Discover and validate core transactional keywords for DepositBack",
   "steps": [
     {
-      "id": "health_check",
-      "skill": "noop",
-      "params": {
-        "message": "depositback-agent-keyword-tier1 is operational"
-      }
+      "id": "discover_tier1",
+      "skill": "keyword_discovery",
+      "params": {}
     }
   ],
   "on_success": "Write result to data/outbox/",
