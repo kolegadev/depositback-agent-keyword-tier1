@@ -1,0 +1,18 @@
+{
+  "workflow_id": "depositback-agent-keyword-tier1-default",
+  "version": "1.0.0",
+  "agent": "depositback-agent-keyword-tier1",
+  "created": "2026-05-20T00:00:00Z",
+  "description": "Default health-check workflow for depositback-agent-keyword-tier1",
+  "steps": [
+    {
+      "id": "health_check",
+      "skill": "noop",
+      "params": {
+        "message": "depositback-agent-keyword-tier1 is operational"
+      }
+    }
+  ],
+  "on_success": "Write result to data/outbox/",
+  "on_failure": "Update state.json with error status"
+}
