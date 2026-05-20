@@ -1,4 +1,4 @@
-"""Runtime for depositback-agent-keyword-tier1."""
+"""Runtime with automatic downstream routing."""
 import json
 import shutil
 import sys
@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 AGENT_NAME = "depositback-agent-keyword-tier1"
-AGENT_ID = "19"
+AGENT_ID = "26"
 BASE_DIR = Path(__file__).resolve().parent.parent
 INBOX = BASE_DIR / "data" / "inbox"
 OUTBOX = BASE_DIR / "data" / "outbox"
@@ -79,6 +79,22 @@ def process_manifest(path: Path):
         "results": results,
     }
     artifact_path = write_artifact("output", artifact)
+
+    # ── Downstream routing ───────────────────────────────────────────────
+    try:
+        resolver = importlib.import_module("skill_resolver")
+        route_fn = resolver.resolve_skill("route_outputs")
+        if route_fn:
+            print(f"   📤 Routing outputs to Content Production agents...")
+            tier = 1 if "tier1" in AGENT_NAME else (2 if "tier2" in AGENT_NAME else 3)
+            route_result = resolver.execute_skill(route_fn, {
+                "artifact_path": artifact_path,
+                "tier": tier,
+                "agent_name": AGENT_NAME,
+            })
+            print(f"   ✅ Routed: {json.dumps(route_result, default=str)[:200]}")
+    except Exception as e:
+        print(f"   ⚠️  Routing skipped: {e}")
 
     ARCHIVE.mkdir(parents=True, exist_ok=True)
     shutil.move(str(path), str(ARCHIVE / path.name))
