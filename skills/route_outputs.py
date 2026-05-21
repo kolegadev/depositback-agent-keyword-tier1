@@ -1,4 +1,6 @@
-"""Route Outputs skill — pushes keyword artifacts to Content Production agent inboxes."""
+"""Route Outputs skill — pushes keyword artifacts to Content Production agent inboxes.
+Requires CROSS_REPO_PAT environment variable (Classic PAT with repo scope).
+"""
 import os
 import json
 import base64
@@ -6,7 +8,7 @@ import requests
 from datetime import datetime, timezone
 
 OWNER = "kolegadev"
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+CROSS_REPO_PAT = os.getenv("CROSS_REPO_PAT")
 
 CONTENT_AGENTS = {
     "geo_content_generator": "depositback-agent-geo-content-generator",
@@ -17,18 +19,18 @@ CONTENT_AGENTS = {
 
 
 def _put_file(repo: str, path: str, content: str, message: str):
-    if not GITHUB_TOKEN:
-        return {"error": "GITHUB_TOKEN not set"}
+    if not CROSS_REPO_PAT:
+        return {"error": "CROSS_REPO_PAT not set"}
     url = f"https://api.github.com/repos/{OWNER}/{repo}/contents/{path}"
     b64 = base64.b64encode(content.encode()).decode()
     payload = {"message": message, "content": b64}
     headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Authorization": f"Bearer {CROSS_REPO_PAT}",
         "Accept": "application/vnd.github+json",
     }
     r = requests.put(url, headers=headers, json=payload)
     if r.status_code == 422:
-        get_r = requests.get(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"})
+        get_r = requests.get(url, headers={"Authorization": f"Bearer {CROSS_REPO_PAT}"})
         if get_r.status_code == 200:
             sha = get_r.json().get("sha")
             payload["sha"] = sha
@@ -43,27 +45,17 @@ def run(artifact_path: str, tier: int, agent_name: str):
     with open(artifact_path, "r") as f:
         artifact = json.load(f)
 
-    # The artifact is wrapped by runtime/main.py. The actual skill result is inside results[].result
-    keywords = []
-    raw_result = None
-    if "results" in artifact and artifact["results"]:
-        raw_result = artifact["results"][0].get("result", {})
-    else:
-        raw_result = artifact
-
-    # Flatten keywords from nested tier 3 structure or direct array
-    if "keywords" in raw_result:
-        keywords = raw_result["keywords"]
-    elif "states" in raw_result:
-        for state_data in raw_result["states"].values():
+    keywords = artifact.get("keywords", [])
+    if not keywords and "states" in artifact:
+        keywords = []
+        for state_data in artifact["states"].values():
             keywords.extend(state_data.get("keywords", []))
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     routed = []
 
-    # Route to geo-content-generator (all tiers with state pages)
     if tier in (1, 3):
-        state_keywords = [k for k in keywords if k.get("target_page", "").startswith("/")]
+        state_keywords = [k for k in keywords if k.get("target_page", "").startswith("/") or "state" in k.get("target_page", "")]
         if state_keywords:
             brief = {
                 "request_id": f"brief-{ts}-geo",
@@ -77,7 +69,6 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["geo_content_generator"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "geo_content_generator", "path": path, "result": res})
 
-    # Route to landing-page-optimizer (homepage + transactional)
     if tier == 1:
         transactional = [k for k in keywords if k.get("target_page") == "homepage" or "transactional" in k.get("intent", "")]
         if transactional:
@@ -93,7 +84,6 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["landing_page_optimizer"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "landing_page_optimizer", "path": path, "result": res})
 
-    # Route to social-content-creator (problem-aware)
     if tier == 2:
         problem_keywords = [k for k in keywords if "problem" in k.get("intent", "") or "blog" in k.get("content_strategy", "")]
         if problem_keywords:
@@ -109,7 +99,6 @@ def run(artifact_path: str, tier: int, agent_name: str):
             res = _put_file(CONTENT_AGENTS["social_content_creator"], path, json.dumps(brief, indent=2), f"📥 Keyword brief from {agent_name}")
             routed.append({"target": "social_content_creator", "path": path, "result": res})
 
-    # Route to email-copywriter (all tiers)
     all_keywords = keywords[:30]
     if all_keywords:
         brief = {
