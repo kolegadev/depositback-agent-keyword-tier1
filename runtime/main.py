@@ -86,7 +86,7 @@ def process_manifest(path: Path):
         route_fn = resolver.resolve_skill("route_outputs")
         if route_fn:
             print("   📤 Routing to downstream agents...")
-            route_result = resolver.execute_skill(route_fn, artifact_path, 1, AGENT_NAME)
+            route_result = resolver.execute_skill(route_fn, {"artifact_path": artifact_path, "tier": 1, "agent_name": AGENT_NAME})
             print(f"   ✅ Routed: {route_result}")
         else:
             print("   ℹ️  route_outputs skill not available")
