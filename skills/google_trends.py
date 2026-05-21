@@ -36,7 +36,7 @@ def run(keywords: list, timeframe: str = "today 12-m", geo: str = "US"):
         text = resp.text
         if text.startswith(")]}\',"):
             text = text[5:]
-        data = __import__("json").loads(text)
+        data = __import__('json').loads(text)
 
         widgets = data.get("widgets", [])
         related_queries_widget = next((w for w in widgets if w.get("id") == "RELATED_QUERIES"), None)
@@ -47,14 +47,14 @@ def run(keywords: list, timeframe: str = "today 12-m", geo: str = "US"):
             token = related_queries_widget.get("token", "")
             req_url = (
                 f"https://trends.google.com/trends/api/widgetdata/relatedsearches?"
-                f"hl=en-US&tz=-480&req={urllib.parse.quote(__import__("json").dumps(req_body))}"
+                f"hl=en-US&tz=-480&req={urllib.parse.quote(__import__('json').dumps(req_body))}"
                 f"&token={urllib.parse.quote(token)}"
             )
             r2 = requests.get(req_url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
             t2 = r2.text
             if t2.startswith(")]}\',"):
                 t2 = t2[5:]
-            d2 = __import__("json").loads(t2)
+            d2 = __import__('json').loads(t2)
             for entry in d2.get("default", {}).get("rankedList", []):
                 for item in entry.get("rankedKeyword", []):
                     term = item.get("query", "")
