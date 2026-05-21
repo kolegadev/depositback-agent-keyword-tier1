@@ -1,4 +1,4 @@
-"""Runtime with automatic downstream routing."""
+"""Runtime for tier1 with automatic downstream routing via CROSS_REPO_PAT."""
 import json
 import shutil
 import sys
@@ -6,7 +6,7 @@ import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
 
-AGENT_NAME = "depositback-agent-keyword-tier1"
+AGENT_NAME = "tier1"
 AGENT_ID = "26"
 BASE_DIR = Path(__file__).resolve().parent.parent
 INBOX = BASE_DIR / "data" / "inbox"
@@ -83,4 +83,46 @@ def process_manifest(path: Path):
     # ── Downstream routing ───────────────────────────────────────────────
     try:
         resolver = importlib.import_module("skill_resolver")
-    # route_outputs removed — orchestrator now handles cross-repo routing
+        route_fn = resolver.resolve_skill("route_outputs")
+        if route_fn:
+            print("   📤 Routing to downstream agents...")
+            route_result = resolver.execute_skill(route_fn, artifact_path, 1, AGENT_NAME)
+            print(f"   ✅ Routed: {route_result}")
+        else:
+            print("   ℹ️  route_outputs skill not available")
+    except Exception as e:
+        print(f"   ⚠️  Routing failed: {e}")
+
+    ARCHIVE.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(path), str(ARCHIVE / path.name))
+    print(f"   🗄️  Archived: {ARCHIVE / path.name}")
+
+    save_state("idle", {"last_artifact": artifact_path})
+    return artifact
+
+
+def run():
+    print(f"🚀 {AGENT_NAME} ({AGENT_ID}) — {datetime.now(timezone.utc).isoformat()}")
+    for d in [INBOX, OUTBOX, ARCHIVE]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    manifests = sorted(INBOX.glob("*.json"))
+    if not manifests:
+        print("   ℹ️  No manifests in inbox")
+        save_state("idle")
+        return
+
+    manifest = manifests[-1]
+    print(f"   Found {len(manifests)} manifest(s); processing latest: {manifest.name}")
+    try:
+        process_manifest(manifest)
+    except Exception as e:
+        print(f"   ❌ Fatal error: {e}")
+        save_state(f"error: {str(e)[:80]}")
+        raise
+
+    print("   ✅ One-shot complete")
+
+
+if __name__ == "__main__":
+    run()
