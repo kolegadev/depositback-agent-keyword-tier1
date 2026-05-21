@@ -1,9 +1,9 @@
 {
-  "agent": "depositback-agent-keyword-tier1",
+  "agent": "tier1",
   "agent_id": "26",
   "status": "idle",
-  "updated": "2026-05-21T00:08:47.555653+00:00",
+  "updated": "2026-05-21T13:02:10.955269+00:00",
   "meta": {
-    "last_artifact": "/home/runner/work/depositback-agent-keyword-tier1/depositback-agent-keyword-tier1/data/outbox/20260521_000847_output.json"
+    "last_artifact": "/home/runner/work/depositback-agent-keyword-tier1/depositback-agent-keyword-tier1/data/outbox/20260521_130210_output.json"
   }
 }
