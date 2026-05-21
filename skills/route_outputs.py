@@ -46,6 +46,13 @@ def run(artifact_path: str, tier: int, agent_name: str):
         artifact = json.load(f)
 
     keywords = artifact.get("keywords", [])
+    # Keyword agent artifacts nest keywords inside results[].result
+    if not keywords and "results" in artifact:
+        for result_item in artifact.get("results", []):
+            res = result_item.get("result", {})
+            if isinstance(res, dict) and "keywords" in res:
+                keywords = res["keywords"]
+                break
     if not keywords and "states" in artifact:
         keywords = []
         for state_data in artifact["states"].values():
